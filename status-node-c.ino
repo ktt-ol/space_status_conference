@@ -10,12 +10,12 @@
 #include <WiFiClientSecure.h>
 #include <PubSubClient.h>
 #include <time.h>
+#include "cert.h"
+#include "str.h"
 
 #define LED_BLUE  D2
 #define LED_GREEN D6  
 #define LED_RED D5
-
-#include "cert.h"
 
 const char *const SSID0 = "mainframe.iot";
 const char *const SSID0_PASSWORD = "TODO"; 
@@ -66,15 +66,16 @@ static void set_color(Color color) {
 }
 
 static SpaceStatus from_string(const char* const status, const unsigned int length) {
-    if (!strncmp(status, "open", length)) {
+    Str s(status, length);
+    if (s == "open") {
       return SpaceStatus::Open;
-    } else if (!strncmp(status, "open+", length)) {
+    } else if (s == "open+") {
       return SpaceStatus::OpenPlus;
-    } else if (!strncmp(status, "member", length)) {
+    } else if (s == "member") {
       return SpaceStatus::Member;
-    } else if (!strncmp(status, "keyholder", length)) {
+    } else if (s == "keyholder") {
       return SpaceStatus::Keyholder;
-    } else if (!strncmp(status, "none", length)) {
+    } else if (s == "none") {
       return SpaceStatus::Closed;
     } else {
       return SpaceStatus::Unknown;

@@ -14,16 +14,16 @@
 #include "str.h"
 
 #define LED_BLUE  D2
-#define LED_GREEN D6  
+#define LED_GREEN D6
 #define LED_RED D5
 
 const char *const SSID0 = "mainframe.iot";
-const char *const SSID0_PASSWORD = "TODO"; 
+const char *const SSID0_PASSWORD = "TODO";
 
 const unsigned long MAX_NOT_CONNECTED_TIME = 20*1000; // milliseconds
 
 const char *const TIMEZONE = "CET-1CEST-2,M3.5.0/02:00:00,M10.5.0/03:00:00"; // Europe/Berlin
-                               
+
 const char *const MQTT_HOST = "spacegate.mainframe.io"; // "mainframe.io";
 const int MQTT_PORT = 8884;
 const char* const STATUS_TOPIC = "/access-control-system/space-state";
@@ -99,7 +99,7 @@ static void mqtt_callback(const char* const topic, const byte* const payload, co
 
 void setup() {
   pinMode(LED_BLUE, OUTPUT);
-  pinMode(LED_GREEN, OUTPUT);  
+  pinMode(LED_GREEN, OUTPUT);
   pinMode(LED_RED, OUTPUT);
 
   // Self-test
@@ -116,12 +116,12 @@ void setup() {
     Serial.printf("\n\n");
     Serial.printf("MAC address: %s\n", mac.c_str());
   }
-  
+
   mqtt_client.setCallback(mqtt_callback);
   secure.setTrustAnchors(&caCertX509);
   wifi.addAP(SSID0, SSID0_PASSWORD);
   mqtt_client.setServer(MQTT_HOST, MQTT_PORT);  
-} 
+}
 
 int32_t not_connected_since = 0;
 bool ntp_connected = false;
@@ -177,7 +177,7 @@ void loop() {
       last_cycle = t;
       time_t now;
       time(&now);
-      struct tm current_time;      
+      struct tm current_time;
       localtime_r(&now, &current_time);
       if (current_time.tm_year > (2020 - 1900)) {
         hour = current_time.tm_hour;
@@ -225,7 +225,7 @@ void loop() {
         case SpaceStatus::Unknown:
           set_color(Color::Off);
           break;
-      }   
+      }
     }
   }
 }

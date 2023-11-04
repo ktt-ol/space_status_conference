@@ -155,20 +155,25 @@ void loop() {
     ntp_connected = true;
   }
 
-  if (not_connected_since < 0 && !mqtt_client.loop()) {
-    active = false;
-    if (mqtt_client.connect("status-node-c")) {
-      Serial.println("Connected to MQTT server");
-      set_color(Color::Magenta);
-      mqtt_client.subscribe(STATUS_TOPIC);
-      mqtt_client.subscribe(STATUS_NEXT_TOPIC);
+  if (not_connected_since < 0) {
+    if (!mqtt_client.loop()) {
+      if (mqtt_client.connect("status-node-c")) {
+        active = true;
+        Serial.println("Connected to MQTT server");
+        set_color(Color::Magenta);
+        mqtt_client.subscribe(STATUS_TOPIC);
+        mqtt_client.subscribe(STATUS_NEXT_TOPIC);
+      } else {
+        active = false;
+        int status = mqtt_client.state();
+        Serial.printf("MQTT connection failed, status = %i\n", status);
+        delay(1000);
+      }
     } else {
-      int status = mqtt_client.state();
-      Serial.printf("MQTT connection failed, status = %i\n", status);
-      delay(1000);
+      active = true;
     }
   } else {
-    active = true;
+    active = false;
   }
 
   if (ntp_connected) {

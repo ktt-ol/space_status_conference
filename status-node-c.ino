@@ -26,6 +26,8 @@ const char *const TIMEZONE = "CET-1CEST-2,M3.5.0/02:00:00,M10.5.0/03:00:00"; // 
 
 const char *const MQTT_HOST = "spacegate.mainframe.io"; // "mainframe.io";
 const int MQTT_PORT = 8884;
+const unsigned long MQTT_ATTEMPT_WAIT_TIME = 1*1000; // milliseconds
+
 const char* const STATUS_TOPIC = "/access-control-system/space-state";
 const char* const STATUS_NEXT_TOPIC = "/access-control-system/space-state-next";
 
@@ -124,56 +126,73 @@ void setup() {
 }
 
 int32_t not_connected_since = 0;
+int32_t mqtt_last_failure = -1;
+bool wifi_connected = false;
 bool ntp_connected = false;
+bool mqtt_connected = false;
 int hour = -1;
 unsigned long last_cycle = 0;
 bool active = false;
 
+static void disconnected(const char* msg) {
+  unsigned long ts = millis();
+  if (not_connected_since < 0) {
+    not_connected_since = ts;
+    Serial.println(msg);
+  } else {
+    if (ts - (unsigned long)not_connected_since > MAX_NOT_CONNECTED_TIME) {
+      not_connected_since = ts - MAX_NOT_CONNECTED_TIME;
+      current_status = SpaceStatus::Unknown;
+      next_status = SpaceStatus::Unknown;
+    }
+  }
+}
+
 void loop() {
   if (wifi.run() == WL_CONNECTED) {
-    if (not_connected_since >= 0) {
+    if (! wifi_connected) {
       Serial.println("Wi-Fi connection succeeded");
     }
-    not_connected_since = -1;
+    wifi_connected = true;
   } else {
+    disconnected("No Wi-Fi connection");
+    wifi_connected = false;
     ntp_connected = false;
-    unsigned long ts = millis();
-    if (not_connected_since < 0) {
-      not_connected_since = ts;
-      Serial.println("No Wi-Fi connection");
-    } else {
-      if (ts - (unsigned long)not_connected_since > MAX_NOT_CONNECTED_TIME) {
-        not_connected_since = ts - MAX_NOT_CONNECTED_TIME;
-        current_status = SpaceStatus::Unknown;
-      }
-    }
+    mqtt_connected = false;
+    mqtt_last_failure = -1;
   }
 
-  if (not_connected_since < 0 && !ntp_connected) {
-    Serial.println("Wi-Fi connection established, connecting to NTP server");
-    configTzTime(TIMEZONE, NTP_SERVER_1, NTP_SERVER_2);
-    ntp_connected = true;
-  }
-
-  if (not_connected_since < 0) {
-    if (!mqtt_client.loop()) {
-      if (mqtt_client.connect("status-node-c")) {
-        active = true;
-        Serial.println("Connected to MQTT server");
-        set_color(Color::Magenta);
-        mqtt_client.subscribe(STATUS_TOPIC);
-        mqtt_client.subscribe(STATUS_NEXT_TOPIC);
-      } else {
-        active = false;
-        int status = mqtt_client.state();
-        Serial.printf("MQTT connection failed, status = %i\n", status);
-        delay(1000);
-      }
-    } else {
-      active = true;
+  if (wifi_connected) {
+    if (!ntp_connected) {
+      Serial.println("Wi-Fi connection established, connecting to NTP server");
+      configTzTime(TIMEZONE, NTP_SERVER_1, NTP_SERVER_2);
+      ntp_connected = true;
     }
-  } else {
-    active = false;
+
+    if (mqtt_connected) {
+      if (!mqtt_client.loop()) {
+        disconnected("MQTT connection lost");
+        mqtt_connected = false;
+        mqtt_last_failure = -1;
+      }
+    }
+
+    if (!mqtt_connected) {
+      if (mqtt_last_failure < 0 || millis() - (unsigned long)mqtt_last_failure > MQTT_ATTEMPT_WAIT_TIME) {
+        if (mqtt_client.connect("status-node-c")) {
+          not_connected_since = -1;
+          mqtt_connected = true;
+          Serial.println("Connected to MQTT server");
+          set_color(Color::Magenta);
+          mqtt_client.subscribe(STATUS_TOPIC);
+          mqtt_client.subscribe(STATUS_NEXT_TOPIC);
+        } else {
+          int status = mqtt_client.state();
+          Serial.printf("MQTT connection failed, status = %i\n", status);
+          mqtt_last_failure = millis();
+        }
+      }
+    }
   }
 
   if (ntp_connected) {
@@ -192,6 +211,8 @@ void loop() {
       }
     }
   }
+
+  active = mqtt_connected;
 
   if (active) {
     if (hour >= 7 && hour <= 16) {

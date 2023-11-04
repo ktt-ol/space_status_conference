@@ -111,6 +111,7 @@ void setup() {
   delay(250);
   set_color(Color::Blue);
   delay(250);
+  set_color(Color::Off);
 
   Serial.begin(115200);
   {
@@ -132,7 +133,6 @@ bool ntp_connected = false;
 bool mqtt_connected = false;
 int hour = -1;
 unsigned long last_cycle = 0;
-bool active = false;
 
 static void disconnected(const char* msg) {
   unsigned long ts = millis();
@@ -212,46 +212,42 @@ void loop() {
     }
   }
 
-  active = mqtt_connected;
-
-  if (active) {
-    if (hour >= 7 && hour <= 16) {
-      set_color(Color::Off);
-    } else {
-      switch (current_status) {
-        case SpaceStatus::Open:
-        case SpaceStatus::OpenPlus:
-          switch (next_status) {
-            case SpaceStatus::Closed:
-            case SpaceStatus::Keyholder:
-              set_color(Color::Yellow);
-              break;
-            default:
-              set_color(Color::Green);
-              break;
-          }
-          break;
-        case SpaceStatus::Member:
-          set_color(Color::Cyan);
-          break;
-        case SpaceStatus::Keyholder:
-          set_color(Color::Magenta);
-          break;
-        case SpaceStatus::Closed:
-          switch (next_status) {
-            case SpaceStatus::Open:
-            case SpaceStatus::OpenPlus:
-              set_color(Color::Cyan);
-              break;
-            default:
-              set_color(Color::Red);
-              break;
-          }
-          break;
-        case SpaceStatus::Unknown:
-          set_color(Color::Off);
-          break;
-      }
+  if (hour >= 7 && hour <= 16) {
+    set_color(Color::Off);
+  } else {
+    switch (current_status) {
+      case SpaceStatus::Open:
+      case SpaceStatus::OpenPlus:
+        switch (next_status) {
+          case SpaceStatus::Closed:
+          case SpaceStatus::Keyholder:
+            set_color(Color::Yellow);
+            break;
+          default:
+            set_color(Color::Green);
+            break;
+        }
+        break;
+      case SpaceStatus::Member:
+        set_color(Color::Cyan);
+        break;
+      case SpaceStatus::Keyholder:
+        set_color(Color::Magenta);
+        break;
+      case SpaceStatus::Closed:
+        switch (next_status) {
+          case SpaceStatus::Open:
+          case SpaceStatus::OpenPlus:
+            set_color(Color::Cyan);
+            break;
+          default:
+            set_color(Color::Red);
+            break;
+        }
+        break;
+      case SpaceStatus::Unknown:
+        set_color(Color::Off);
+        break;
     }
   }
 }
